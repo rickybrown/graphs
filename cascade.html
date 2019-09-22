@@ -1,0 +1,169 @@
+<!doctype html>
+<html>
+<head>
+  <title>Trophic Cascade Graph</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap/dist/css/bootstrap.min.css" />
+  <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.css" />
+
+  <style type="text/css">
+    body {
+      min-width: 1000px;
+    }
+    #navbar {
+      background: #eee!important;
+    }
+    .nav-item a {
+      color: #555!important;
+    }
+    ion-icon {
+      top: 2px;
+      position: relative;
+    }
+    #controls {
+      height: 150px;
+      background: #eee;
+      border-bottom: 1px solid #e5e5e5;
+    }
+    .query-input {
+      width: calc(100% - 160px)!important;
+      float: left;
+    }
+    #viz {
+      width: 100%;
+      height: calc(100vh - 210px);
+    }
+  </style>
+
+  <script src="https://cdn.neo4jlabs.com/neovis.js/v1.1.0/neovis.js"></script>
+  <script src="https://unpkg.com/vue@latest/dist/vue.min.js"></script>
+  <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.js"></script>
+  <script src="https://unpkg.com/ionicons@4.5.10-0/dist/ionicons.js"></script>
+</head>
+
+<body>
+  <div id="app">
+    <b-navbar :toggleable="false" id="navbar">
+      <b-navbar-brand>Trophic Cascade: Wolves in Yellowstone</b-navbar-brand>
+      <b-navbar-nav class="ml-auto">
+        <b-nav-item href="https://neo4j.com/graphgist/trophic-cascade-a-wolfs-role-in-the-ecosystem-of-yellowstone" target="_blank">
+          <ion-icon name="code-working"></ion-icon> Gist by May Lim
+        </b-nav-item>
+        <b-nav-item v-b-modal.video-modal>
+          <ion-icon name="videocam"></ion-icon> Watch Video
+        </b-nav-item>
+        <b-nav-item href="https://neo4j.com/docs/cypher-manual/3.5/" target="_blank">
+          <ion-icon name="analytics"></ion-icon> Cypher Query Manual
+        </b-nav-item>
+      </b-navbar-nav>
+    </b-navbar>
+    <div id="controls" class="container-fluid pt-3">
+      <div class="row">
+        <div class="col-7">
+          <h6 class="text-muted"> Cypher Query Input</h6>
+          <textarea rows="3" cols=50 v-model="query" class="form-control query-input" placeholder="Enter Cypher Query"></textarea>
+          <div class="float-right">
+            <b-button v-on:click="submit" size="" variant="primary" block class="mb-2">
+              <ion-icon name="play"></ion-icon> Run Query
+            </b-button>
+            <b-button v-on:click="reload" size="" block>
+              <ion-icon name="refresh"></ion-icon> Reload Graph
+            </b-button>
+          </div>
+        </div>
+        <div class="col-5">
+          <h6 class="text-muted">Select Preloaded Queries</h6>
+          <ul style="list-style:none; padding:0">
+            <li v-on:click='query = `MATCH path = ({Entity:"Wolves"})-[*]->({Entity:"Rivers"}) RETURN path`'>
+              <a href="javascript:;" v-b-tooltip.hover title="Show all possible causal relationships / paths from Wolves to Rivers">
+                Causal paths from Wolves to Rivers
+              </a>
+            </li>
+            <li v-on:click='query = `MATCH path = (:Animal {Group:"Mammal"})-[*]->(:Landscape) RETURN path`'>
+              <a href="javascript:;" v-b-tooltip.hover title="Show all possible causal relationships / paths from all Mammals to all Landscape">
+                Causal paths from all Mammals to all Landscape
+              </a>
+            </li>
+            <li v-on:click='query = `MATCH path = (n)-[*]->(n) RETURN path`'>
+              <a href="javascript:;" v-b-tooltip.hover title="Less deers (density) and deer-grazing on open fields (behaviorial), More berry-producing shurbs, More songbirds, More berry-producing shurbs, More bears, Less deers (density) and deer-grazing on open fields (behaviorial)">
+                Causal Loop
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div ref="viz" id="viz"></div>
+
+    <b-modal id="video-modal" size="lg" centered no-close-on-backdrop hide-footer
+      title="How Wolves Change Rivers"
+      header-bg-variant="dark"
+      header-text-variant="light"
+      body-bg-variant="dark"
+      body-text-variant="light"
+      footer-bg-variant="dark"
+      footer-text-variant="light"
+      header-border-variant="dark"
+      footer-border-variant="dark">
+      <iframe width="100%" height="432" src="https://www.youtube.com/embed/ysa5OBhXz-Q" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    </b-modal>
+  </div>
+
+  <script type="text/javascript">
+    new Vue({
+      el: '#app',
+      data: {
+        viz:   undefined,
+        query: "MATCH p=()-->() RETURN p",
+        config: {
+          container_id: "viz",
+          encrypted: "ENCRYPTION_ON",
+          server_url: "bolt://hobby-ogbaceiiloelgbkepikjlodl.dbs.graphenedb.com:24787",
+          server_user: "dbuser",
+          server_password: "b.IFWiTNX5S8C6.UYsFwphx3SCbilUF",
+          labels: {
+            "Character": {
+              "caption": "name",
+              "size": "pagerank",
+              "community": "community"
+            }
+          },
+          relationships: {
+            "INTERACTS": {
+              "thickness": "weight",
+              "caption": false
+            }
+          },
+          initial_cypher: "MATCH p=()-->() RETURN p"
+        },
+        queries: [
+
+        ]
+      },
+      mounted() {
+        this.viz = new NeoVis.default( this.config );
+
+        this.viz.render();
+      },
+      methods: {
+        submit() {
+          if( this.query && this.query.length > 5 ) {
+            this.viz.renderWithCypher( this.query )
+
+            // this.query = null;
+          }
+          else {
+            alert( 'enter a query' )
+          }
+        },
+        reload() {
+          this.viz.reload()
+        }
+      }
+    })
+
+    Vue.use( BootstrapVue );
+  </script>
+</body>
