@@ -11,6 +11,21 @@
     body {
       min-width: 1000px;
     }
+    #loading {
+      position: fixed;
+      z-index: 3000;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: rgba(255, 255, 255, 0.6);
+      user-select: none;
+    }
+    #loading img {
+      height: 120px;
+      border-radius: 15px;
+      margin: auto;
+      position: absolute;
+      left: 0; right: 0; top: 50%;
+      transform: translateY(-50%);
+    }
     #navbar {
       background: #eee!important;
     }
@@ -28,6 +43,8 @@
     }
     .query-input {
       width: calc(100% - 160px)!important;
+      font-size: 14px;
+      height: 94px!important;
       float: left;
     }
     #viz {
@@ -44,6 +61,9 @@
 
 <body>
   <div id="app">
+    <div id="loading" v-if="loading">
+      <img src="img/loader.gif" alt="loading..." />
+    </div>
     <b-navbar :toggleable="false" id="navbar">
       <b-navbar-brand>Trophic Cascade: Wolves in Yellowstone</b-navbar-brand>
       <b-navbar-nav class="ml-auto">
@@ -62,12 +82,12 @@
       <div class="row">
         <div class="col-7">
           <h6 class="text-muted"> Cypher Query Input</h6>
-          <textarea rows="3" cols=50 v-model="query" class="form-control query-input" placeholder="Enter Cypher Query"></textarea>
+          <textarea v-model="query" class="form-control query-input" placeholder="Enter Cypher Query"></textarea>
           <div class="float-right">
-            <b-button v-on:click="submit" size="" variant="primary" block class="mb-2">
+            <b-button v-on:click="submit" :disabled="loading" variant="primary" block class="mb-3">
               <ion-icon name="play"></ion-icon> Run Query
             </b-button>
-            <b-button v-on:click="reload" size="" block>
+            <b-button v-on:click="reload" :disabled="loading" block>
               <ion-icon name="refresh"></ion-icon> Reload Graph
             </b-button>
           </div>
@@ -75,6 +95,11 @@
         <div class="col-5">
           <h6 class="text-muted">Select Preloaded Queries</h6>
           <ul style="list-style:none; padding:0">
+            <li v-on:click='query = `MATCH p=()-->() RETURN p`'>
+              <a href="javascript:;" v-b-tooltip.hover title="Show all nodes and relationships">
+                All nodes and relationships (default)
+              </a>
+            </li>
             <li v-on:click='query = `MATCH path = ({Entity:"Wolves"})-[*]->({Entity:"Rivers"}) RETURN path`'>
               <a href="javascript:;" v-b-tooltip.hover title="Show all possible causal relationships / paths from Wolves to Rivers">
                 Causal paths from Wolves to Rivers
@@ -115,7 +140,8 @@
     new Vue({
       el: '#app',
       data: {
-        viz:   undefined,
+        viz: undefined,
+        loading: true,
         query: "MATCH p=()-->() RETURN p",
         config: {
           container_id: "viz",
@@ -145,20 +171,26 @@
       mounted() {
         this.viz = new NeoVis.default( this.config );
 
+        this.viz.registerOnEvent( 'completed', () => {
+          setTimeout(() => { this.loading = false }, 1000)
+        });
+
         this.viz.render();
       },
       methods: {
         submit() {
           if( this.query && this.query.length > 5 ) {
-            this.viz.renderWithCypher( this.query )
+            this.loading = true
 
-            // this.query = null;
+            this.viz.renderWithCypher( this.query )
           }
           else {
             alert( 'enter a query' )
           }
         },
         reload() {
+          this.loading = true
+
           this.viz.reload()
         }
       }
